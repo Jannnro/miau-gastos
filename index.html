@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MiauGastos</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        gray: {
+                            50: '#fafafa',
+                            100: '#f4f4f5',
+                            200: '#e4e4e7',
+                            800: '#27272a',
+                            900: '#18181b',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #fafafa; /* Cinza quase branco */
+            color: #18181b;
+        }
+        .chart-container {
+            position: relative;
+            height: 280px;
+            width: 100%;
+            max-width: 350px;
+            margin: 0 auto;
+        }
+        .card {
+            background: white;
+            border-radius: 24px; /* Bordas bem arredondadas */
+            padding: 2rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02), 0 2px 4px -1px rgba(0, 0, 0, 0.02); /* Sombra ultra suave */
+            border: 1px solid #f4f4f5;
+        }
+        .input-minimal {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            background-color: #f4f4f5;
+            border: 1px solid transparent;
+            border-radius: 12px;
+            font-size: 0.95rem;
+            transition: all 0.2s;
+        }
+        .input-minimal:focus {
+            background-color: white;
+            border-color: #e4e4e7;
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(0,0,0,0.05);
+        }
+        .btn-minimal {
+            background-color: #18181b;
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 12px;
+            font-weight: 500;
+            transition: transform 0.1s, opacity 0.2s;
+            width: 100%;
+        }
+        .btn-minimal:hover {
+            opacity: 0.9;
+        }
+        .btn-minimal:active {
+            transform: scale(0.98);
+        }
+        .btn-icon {
+            color: #a1a1aa;
+            padding: 8px;
+            border-radius: 8px;
+            transition: color 0.2s, background-color 0.2s;
+        }
+        .btn-icon:hover {
+            color: #ef4444;
+            background-color: #fee2e2;
+        }
+        /* Esconder scrollbar no histórico */
+        .history-scroll::-webkit-scrollbar {
+            width: 6px;
+        }
+        .history-scroll::-webkit-scrollbar-thumb {
+            background-color: #e4e4e7;
+            border-radius: 20px;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center py-8 px-4 md:px-0">
+
+    <!-- Chosen Palette: Minimalist Grayscale (Zinc) with soft distinct accents for data -->
+    
+    <main class="w-full max-w-5xl">
+        
+        <!-- Cabeçalho Minimalista -->
+        <header class="flex flex-col md:flex-row justify-between items-center mb-12 px-2">
+            <div class="text-center md:text-left mb-6 md:mb-0">
+                <h1 class="text-3xl font-semibold tracking-tight text-gray-900">MiauGastos</h1>
+                <p class="text-gray-500 text-sm mt-1">Controle financeiro simplificado.</p>
+            </div>
+            
+            <!-- Cards de Resumo (Compactos) -->
+            <div class="flex gap-6">
+                <div class="text-right">
+                    <p class="text-xs text-gray-400 uppercase tracking-wider font-medium">Total</p>
+                    <p id="total-geral" class="text-2xl font-semibold text-gray-900">R$ 0,00</p>
+                </div>
+                <div class="text-right pl-6 border-l border-gray-200">
+                    <p class="text-xs text-gray-400 uppercase tracking-wider font-medium">Top Categoria</p>
+                    <p id="principal-categoria" class="text-xl font-medium text-gray-700">--</p>
+                </div>
+            </div>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            
+            <!-- Coluna da Esquerda: Entrada e Gráfico -->
+            <div class="lg:col-span-4 space-y-8">
+                
+                <!-- Formulário -->
+                <div class="card">
+                    <h2 class="text-lg font-medium mb-6 text-gray-800">Novo Gasto</h2>
+                    <form id="form-gasto" class="space-y-4">
+                        <div>
+                            <input type="text" id="descricao" class="input-minimal" placeholder="Descrição (ex: Sachê)" required>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <input type="number" id="valor" class="input-minimal" placeholder="R$ 0,00" min="0.01" step="0.01" required>
+                            <select id="categoria" class="input-minimal bg-white cursor-pointer" required>
+                                <option value="" disabled selected>Categoria</option>
+                                <option value="Alimentação">Alimentação</option>
+                                <option value="Saúde">Saúde</option>
+                                <option value="Brinquedos">Brinquedos</option>
+                                <option value="Higiene">Higiene</option>
+                                <option value="Outros">Outros</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="btn-minimal mt-2">Adicionar</button>
+                    </form>
+                </div>
+
+                <!-- Gráfico -->
+                <div class="card flex flex-col items-center justify-center">
+                    <h2 class="text-lg font-medium mb-6 w-full text-left text-gray-800">Distribuição</h2>
+                    <div class="chart-container">
+                        <canvas id="grafico-categorias"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Coluna da Direita: Listas e Detalhes -->
+            <div class="lg:col-span-8 space-y-8">
+                
+                <!-- Resumo Categorias (Layout Horizontal) -->
+                <div class="card">
+                    <h2 class="text-lg font-medium mb-4 text-gray-800">Por Categoria</h2>
+                    <div id="lista-resumo-categoria" class="flex flex-wrap gap-4">
+                        <!-- Preenchido via JS -->
+                        <span class="text-gray-400 text-sm">Sem dados.</span>
+                    </div>
+                </div>
+
+                <!-- Histórico -->
+                <div class="card h-[500px] flex flex-col">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-lg font-medium text-gray-800">Histórico Recente</h2>
+                        <button onclick="limparTudo()" class="text-xs text-red-400 hover:text-red-600 transition-colors">Limpar Tudo</button>
+                    </div>
+                    
+                    <div class="flex-1 overflow-y-auto history-scroll pr-2">
+                        <ul id="lista-historico" class="space-y-0">
+                            <!-- Preenchido via JS -->
+                            <li class="text-center py-10 text-gray-400 font-light">
+                                Nenhum lançamento encontrado.
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- LÓGICA DE DADOS ---
+            let gastos = JSON.parse(localStorage.getItem('miauGastos_dados_v2')) || [];
+            let chartInstance = null;
+
+            const form = document.getElementById('form-gasto');
+            const totalGeralEl = document.getElementById('total-geral');
+            const principalCategoriaEl = document.getElementById('principal-categoria');
+            const listaResumoEl = document.getElementById('lista-resumo-categoria');
+            const listaHistoricoEl = document.getElementById('lista-historico');
+            const ctx = document.getElementById('grafico-categorias').getContext('2d');
+
+            // Paleta Minimalista para o Gráfico (Tons suaves)
+            const coresCategoria = {
+                'Alimentação': '#52525b', // Zinc 600
+                'Saúde': '#ef4444',      // Red 500 (Importante)
+                'Brinquedos': '#f59e0b', // Amber 500
+                'Higiene': '#3b82f6',    // Blue 500
+                'Outros': '#d4d4d8'      // Zinc 300
+            };
+
+            function salvarDados() {
+                localStorage.setItem('miauGastos_dados_v2', JSON.stringify(gastos));
+                atualizarUI();
+            }
+
+            window.limparTudo = function() {
+                if(confirm('Tem certeza que deseja apagar todos os registros?')) {
+                    gastos = [];
+                    salvarDados();
+                }
+            }
+
+            function formatarMoeda(valor) {
+                return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+            }
+
+            function calcularTotais() {
+                const totalGeral = gastos.reduce((acc, gasto) => acc + gasto.valor, 0);
+                const somasCategoria = {};
+                gastos.forEach(gasto => {
+                    somasCategoria[gasto.categoria] = (somasCategoria[gasto.categoria] || 0) + gasto.valor;
+                });
+
+                let maiorCategoria = '--';
+                let maiorValor = 0;
+                Object.entries(somasCategoria).forEach(([categoria, valor]) => {
+                    if (valor > maiorValor) {
+                        maiorValor = valor;
+                        maiorCategoria = categoria;
+                    }
+                });
+
+                return { totalGeral, somasCategoria, maiorCategoria };
+            }
+
+            // Renderização Minimalista do Histórico
+            function renderizarHistorico() {
+                listaHistoricoEl.innerHTML = '';
+                if (gastos.length === 0) {
+                    listaHistoricoEl.innerHTML = '<li class="text-center py-10 text-gray-400 font-light">Nenhum lançamento encontrado.</li>';
+                    return;
+                }
+
+                gastos.slice().reverse().forEach(gasto => {
+                    const li = document.createElement('li');
+                    // Layout de linha limpa, apenas border bottom
+                    li.className = 'group flex justify-between items-center py-4 border-b border-gray-50 last:border-0 hover:bg-gray-50 transition-colors rounded-lg px-2';
+                    li.innerHTML = `
+                        <div class="flex items-center gap-4">
+                            <div class="w-2 h-2 rounded-full" style="background-color: ${coresCategoria[gasto.categoria]}"></div>
+                            <div>
+                                <p class="text-gray-900 font-medium text-sm">${gasto.descricao}</p>
+                                <p class="text-xs text-gray-400">${gasto.categoria}</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-4">
+                            <span class="text-gray-900 font-medium text-sm">${formatarMoeda(gasto.valor)}</span>
+                            <button data-id="${gasto.id}" class="btn-icon opacity-0 group-hover:opacity-100" aria-label="Excluir">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+                    `;
+                    listaHistoricoEl.appendChild(li);
+                });
+            }
+
+            // Renderização de "Chips" para o resumo
+            function renderizarResumoCategoria(somasCategoria) {
+                listaResumoEl.innerHTML = '';
+                const entries = Object.entries(somasCategoria);
+
+                if (entries.length === 0) {
+                    listaResumoEl.innerHTML = '<span class="text-gray-400 text-sm">Sem dados.</span>';
+                    return;
+                }
+
+                entries.sort(([, a], [, b]) => b - a);
+                
+                entries.forEach(([categoria, valor]) => {
+                    const div = document.createElement('div');
+                    div.className = 'flex flex-col min-w-[100px] bg-gray-50 rounded-xl p-3 border border-gray-100';
+                    div.innerHTML = `
+                        <span class="text-xs text-gray-500 mb-1 flex items-center gap-1">
+                            <span class="w-1.5 h-1.5 rounded-full" style="background-color: ${coresCategoria[categoria]}"></span>
+                            ${categoria}
+                        </span>
+                        <span class="text-sm font-semibold text-gray-800">${formatarMoeda(valor)}</span>
+                    `;
+                    listaResumoEl.appendChild(div);
+                });
+            }
+
+            // Configuração Limpa do Gráfico
+            function inicializarGrafico() {
+                Chart.defaults.font.family = "'Inter', sans-serif";
+                Chart.defaults.color = '#a1a1aa';
+                
+                chartInstance = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: [],
+                        datasets: [{
+                            data: [],
+                            backgroundColor: [],
+                            borderWidth: 0, // Remove bordas para look flat
+                            hoverOffset: 4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        cutout: '75%', // Rosquinha mais fina
+                        plugins: {
+                            legend: {
+                                display: false // Remove legenda do canvas (já temos os chips)
+                            },
+                            tooltip: {
+                                backgroundColor: '#18181b',
+                                padding: 12,
+                                cornerRadius: 8,
+                                displayColors: false,
+                                callbacks: {
+                                    label: function(context) {
+                                        return context.label + ': ' + formatarMoeda(context.parsed);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+
+            function atualizarGrafico(somasCategoria) {
+                if (!chartInstance) inicializarGrafico();
+
+                const labels = Object.keys(somasCategoria);
+                const data = Object.values(somasCategoria);
+                const backgroundColors = labels.map(label => coresCategoria[label] || '#d4d4d8');
+
+                chartInstance.data.labels = labels;
+                chartInstance.data.datasets[0].data = data;
+                chartInstance.data.datasets[0].backgroundColor = backgroundColors;
+                chartInstance.update();
+            }
+
+            function atualizarUI() {
+                const { totalGeral, somasCategoria, maiorCategoria } = calcularTotais();
+                totalGeralEl.textContent = formatarMoeda(totalGeral);
+                principalCategoriaEl.textContent = maiorCategoria;
+                renderizarHistorico();
+                renderizarResumoCategoria(somasCategoria);
+                atualizarGrafico(somasCategoria);
+            }
+
+            form.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const descricao = document.getElementById('descricao').value;
+                const valor = parseFloat(document.getElementById('valor').value);
+                const categoria = document.getElementById('categoria').value;
+
+                if (!descricao || !valor || !categoria || valor <= 0) return;
+
+                gastos.push({ id: Date.now(), descricao, valor, categoria });
+                salvarDados();
+                form.reset();
+                document.getElementById('categoria').value = ""; // Reset select visualmente
+            });
+
+            listaHistoricoEl.addEventListener('click', (e) => {
+                const btn = e.target.closest('button');
+                if (btn && btn.dataset.id) {
+                    const id = parseInt(btn.dataset.id, 10);
+                    gastos = gastos.filter(g => g.id !== id);
+                    salvarDados();
+                }
+            });
+
+            inicializarGrafico();
+            atualizarUI();
+        });
+    </script>
+</body>
+</html>
